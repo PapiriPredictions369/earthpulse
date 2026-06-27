@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌍 EarthPulse — live creation watch
 
-## Getting Started
+A single live dashboard for natural events happening on Earth and in the heavens:
 
-First, run the development server:
+- 🌐 **Earthquakes** — USGS real-time feed (M2.5+, past 24h)
+- 🔥🌋🌀🌊 **Wildfires, volcanoes, storms, floods, ice, drought…** — NASA EONET
+- ☀️ **Solar flares** — NASA DONKI + NOAA GOES X-ray flux (flare class)
+- 🧲 **Geomagnetic Kp index** & 🌫️ **solar wind speed** — NOAA SWPC
+- 📡 **Schumann resonance** — pluggable card (see note below)
+
+Built with Next.js (App Router) + Tailwind, cached in **Upstash Redis**, deploys to **Vercel**.
+
+## How it works
+
+- `src/lib/sources.ts` fetches each public feed and normalizes everything into a
+  common `Signal` / `Gauge` shape.
+- `src/lib/cache.ts` wraps every upstream call in Upstash (`cached(key, ttl, fn)`),
+  with a per-instance in-memory fallback when Upstash isn't configured.
+- `src/app/api/feed/route.ts` aggregates it all into one JSON endpoint.
+- The dashboard server-renders the first paint, then refreshes every 60s.
+
+If a source is down, the dashboard still renders — failures are collected into a
+small "sources had issues" expander instead of crashing the page.
+
+## Run locally
 
 ```bash
+npm install
+cp .env.example .env.local   # optional; works without it
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push to GitHub:
+   ```bash
+   git add -A && git commit -m "EarthPulse" && git push
+   ```
+2. Import the repo at https://vercel.com/new.
+3. Create a free Upstash Redis DB and add its env vars in Vercel
+   (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`). Add `NASA_API_KEY` too.
+4. Deploy.
 
-## Learn More
+## Data sources
 
-To learn more about Next.js, take a look at the following resources:
+| Signal | Source | Key needed |
+|---|---|---|
+| Earthquakes | `earthquake.usgs.gov` GeoJSON | no |
+| Natural events | NASA EONET v3 | no |
+| Solar flares | NASA DONKI | DEMO_KEY / free key |
+| X-ray flux, Kp, solar wind | NOAA SWPC | no |
+| Schumann resonance | your `SCHUMANN_FEED_URL` | optional |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### A note on the Schumann resonance
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+There is **no stable, free, public JSON API** for live Schumann resonance data.
+The well-known monitors (HeartMath Global Coherence, Tomsk, Cumiana) publish
+spectrogram *images*, not machine-readable feeds. So the card shows the 7.83 Hz
+reference baseline by default and clearly labels it as such. If you find or host a
+JSON feed, set `SCHUMANN_FEED_URL` and it goes live automatically.
