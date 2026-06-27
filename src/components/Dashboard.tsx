@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Feed, Gauge, Severity, Signal } from "@/lib/types";
+import WorldMap from "./WorldMap";
 
 const REFRESH_MS = 60_000;
 
@@ -185,6 +186,19 @@ export default function Dashboard({ initial }: { initial: Feed }) {
           </span>
         </div>
       </header>
+
+      <section className="mb-6">
+        <WorldMap events={feed.events} />
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-white/40">
+          {(["low", "moderate", "high", "extreme"] as Severity[]).map((s) => (
+            <span key={s} className="flex items-center gap-1.5">
+              <span className={`inline-block h-2 w-2 rounded-full ${SEVERITY_STYLE[s].dot}`} />
+              {s}
+            </span>
+          ))}
+          <span>· hover a dot for details</span>
+        </div>
+      </section>
 
       <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {feed.gauges.map((g) => (
