@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Severity, Signal } from "@/lib/types";
+import type { NewsArticle, Severity, Signal } from "@/lib/types";
 
 type Ring = [number, number][];
 type LandFeature = {
@@ -47,7 +47,13 @@ function landPath(geo: LandGeo): string {
   return parts.join("");
 }
 
-export default function WorldMap({ events }: { events: Signal[] }) {
+export default function WorldMap({
+  events,
+  news = [],
+}: {
+  events: Signal[];
+  news?: NewsArticle[];
+}) {
   const [geo, setGeo] = useState<LandGeo | null>(null);
 
   useEffect(() => {
@@ -62,6 +68,29 @@ export default function WorldMap({ events }: { events: Signal[] }) {
   }, []);
 
   const land = useMemo(() => (geo ? landPath(geo) : ""), [geo]);
+
+  // News is plotted by source-country centroid; aggregate so each country is one marker.
+  const newsClusters = useMemo(() => {
+    const byCountry = new Map<
+      string,
+      { lat: number; lng: number; count: number; country: string }
+    >();
+    for (const n of news) {
+      if (typeof n.lat !== "number" || typeof n.lng !== "number") continue;
+      const key = n.country ?? `${n.lat},${n.lng}`;
+      const c = byCountry.get(key);
+      if (c) c.count++;
+      else
+        byCountry.set(key, {
+          lat: n.lat,
+          lng: n.lng,
+          count: 1,
+          country: n.country ?? "",
+        });
+    }
+    return [...byCountry.values()];
+  }, [news]);
+
   const dots = useMemo(
     () =>
       events
@@ -107,6 +136,25 @@ export default function WorldMap({ events }: { events: Signal[] }) {
           />
         ))}
         {land && <path d={land} fill="#1b2740" stroke="#2c3c5e" strokeWidth={0.15} />}
+        {newsClusters.map((c) => {
+          const s = 1.3 + Math.min(c.count, 12) * 0.18;
+          return (
+            <rect
+              key={`news-${c.country}-${c.lat}-${c.lng}`}
+              x={px(c.lng) - s / 2}
+              y={py(c.lat) - s / 2}
+              width={s}
+              height={s}
+              transform={`rotate(45 ${px(c.lng)} ${py(c.lat)})`}
+              fill="#38bdf8"
+              fillOpacity={0.55}
+              stroke="#7dd3fc"
+              strokeWidth={0.15}
+            >
+              <title>{`${c.count} news ${c.count === 1 ? "story" : "stories"} from ${c.country || "source"}`}</title>
+            </rect>
+          );
+        })}
         {dots.map((e) => {
           const d = DOT[e.severity];
           return (

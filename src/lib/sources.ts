@@ -1,7 +1,9 @@
 import { cached, cacheBackend } from "./cache";
+import { getNews } from "./news";
 import type {
   Feed,
   Gauge,
+  NewsArticle,
   Severity,
   Signal,
   SignalCategory,
@@ -350,21 +352,23 @@ export async function getFeed(): Promise<Feed> {
     }
   };
 
-  const [quakes, events, flares, kp, wind, xray, schumann] = await Promise.all([
-    settle("earthquakes", getEarthquakes(), [] as Signal[]),
-    settle("natural-events", getNaturalEvents(), [] as Signal[]),
-    settle("solar-flares", getSolarFlares(), [] as Signal[]),
-    settle("kp", getKpGauge(), null as Gauge | null),
-    settle("solar-wind", getSolarWindGauge(), null as Gauge | null),
-    settle("xray", getXrayGauge(), null as Gauge | null),
-    settle("schumann", getSchumann(), {
-      frequency: null,
-      amplitude: null,
-      severity: "low",
-      status: "Unavailable",
-      source: "—",
-    } as SchumannReading),
-  ]);
+  const [quakes, events, flares, kp, wind, xray, schumann, news] =
+    await Promise.all([
+      settle("earthquakes", getEarthquakes(), [] as Signal[]),
+      settle("natural-events", getNaturalEvents(), [] as Signal[]),
+      settle("solar-flares", getSolarFlares(), [] as Signal[]),
+      settle("kp", getKpGauge(), null as Gauge | null),
+      settle("solar-wind", getSolarWindGauge(), null as Gauge | null),
+      settle("xray", getXrayGauge(), null as Gauge | null),
+      settle("schumann", getSchumann(), {
+        frequency: null,
+        amplitude: null,
+        severity: "low",
+        status: "Unavailable",
+        source: "—",
+      } as SchumannReading),
+      settle("news", getNews(), [] as NewsArticle[]),
+    ]);
 
   const allEvents = [...quakes, ...events, ...flares].sort(
     (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
@@ -378,6 +382,7 @@ export async function getFeed(): Promise<Feed> {
     events: allEvents,
     gauges,
     schumann,
+    news,
     errors,
   };
 }

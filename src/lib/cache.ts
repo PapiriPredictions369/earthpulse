@@ -56,3 +56,23 @@ export async function cached<T>(
 
   return value;
 }
+
+/**
+ * Returns true the first time `key` is seen, false on every subsequent call
+ * within `ttlSeconds`. Used to dedupe alerts so each event fires once.
+ */
+export async function markOnce(key: string, ttlSeconds: number): Promise<boolean> {
+  if (redis) {
+    try {
+      // NX = only set if absent; returns "OK" when newly set, null otherwise.
+      const res = await redis.set(key, "1", { nx: true, ex: ttlSeconds });
+      return res === "OK";
+    } catch {
+      return true; // on cache failure, prefer alerting over silence
+    }
+  }
+  const hit = mem.get(key);
+  if (hit && hit.expires > Date.now()) return false;
+  mem.set(key, { value: "1", expires: Date.now() + ttlSeconds * 1000 });
+  return true;
+}

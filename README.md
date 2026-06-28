@@ -7,6 +7,9 @@ A single live dashboard for natural events happening on Earth and in the heavens
 - ☀️ **Solar flares** — NASA DONKI + NOAA GOES X-ray flux (flare class)
 - 🧲 **Geomagnetic Kp index** & 🌫️ **solar wind speed** — NOAA SWPC
 - 📡 **Schumann resonance** — pluggable card (see note below)
+- 🗞️ **Live world news** with images + sources — GDELT (reputable English outlets)
+- 🧠 **AI Daily Briefing** — Claude synthesizes the live data into a situational brief
+- 🔔 **Telegram alerts** — extreme events pushed to you on a schedule
 
 Built with Next.js (App Router) + Tailwind, cached in **Upstash Redis**, deploys to **Vercel**.
 
@@ -52,6 +55,22 @@ Open http://localhost:3000.
 | Solar flares | NASA DONKI | DEMO_KEY / free key |
 | X-ray flux, Kp, solar wind | NOAA SWPC | no |
 | Schumann resonance | your `SCHUMANN_FEED_URL` | optional |
+| World news (images + sources) | GDELT DOC 2.0 | no |
+| AI Daily Briefing | Anthropic (Claude Opus 4.8) | `ANTHROPIC_API_KEY` |
+| Telegram alerts (cron) | Telegram Bot API | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` |
+
+### AI Daily Briefing
+`/api/briefing` feeds the current snapshot to Claude and returns a short Markdown
+brief, cached hourly in Upstash. Without `ANTHROPIC_API_KEY` the card shows a
+setup note. The prompt is grounded strictly in the data and instructed not to
+imply unproven links (e.g. between Schumann/solar activity and human events).
+
+### Telegram alerts
+`/api/cron/alerts` scans for extreme signals (M6+ quakes, X-class flares, Kp ≥ 7,
+any `extreme` event) and pushes one Telegram message each, deduped in Upstash for
+6h. `vercel.json` runs it hourly. Protect it by setting `CRON_SECRET`. Note:
+Vercel Hobby caps cron frequency — bump the schedule on a paid plan for finer
+granularity, or hit the endpoint manually.
 
 ### A note on the Schumann resonance
 

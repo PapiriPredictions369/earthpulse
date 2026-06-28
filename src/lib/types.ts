@@ -58,11 +58,24 @@ export type SchumannReading = {
   source: string;
 };
 
+export type NewsArticle = {
+  id: string;
+  title: string;
+  url: string;
+  image?: string;
+  domain: string;
+  country?: string;
+  time: string; // ISO 8601
+  lat?: number;
+  lng?: number;
+};
+
 export type Feed = {
   updatedAt: string;
   cache: string;
   events: Signal[];
   gauges: Gauge[];
   schumann: SchumannReading;
+  news: NewsArticle[];
   errors: string[];
 };
