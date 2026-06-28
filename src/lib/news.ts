@@ -1,5 +1,11 @@
-import { cached } from "./cache";
+import { cacheGet, cacheSet } from "./cache";
 import type { NewsArticle } from "./types";
+
+const NEWS_KEY = "gdelt:news:v2";
+const OK_TTL = 900; // cache real results for 15 min
+const FAIL_TTL = 120; // cache empties briefly so we retry soon but don't hammer
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const UA = "EarthPulse/1.0 (+https://github.com/) creation-watch dashboard";
 
@@ -68,20 +74,27 @@ type GdeltArticle = {
   sourcecountry?: string;
 };
 
-export async function getNews(): Promise<NewsArticle[]> {
-  return cached("gdelt:news", 900, async () => {
-    const url =
-      "https://api.gdeltproject.org/api/v2/doc/doc?" +
-      `query=${encodeURIComponent(GDELT_QUERY)}` +
-      "&mode=ArtList&format=json&maxrecords=40&sort=DateDesc";
+async function fetchGdelt(): Promise<NewsArticle[]> {
+  const url =
+    "https://api.gdeltproject.org/api/v2/doc/doc?" +
+    `query=${encodeURIComponent(GDELT_QUERY)}` +
+    "&mode=ArtList&format=json&maxrecords=40&sort=DateDesc";
 
+  // GDELT rate-limits per IP (1 req / 5s) and Vercel egress IPs are shared,
+  // so 429s are common. Try a couple of spaced attempts before giving up.
+  let lastErr = "unknown";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await sleep(5200);
     const res = await fetch(url, {
       headers: { "User-Agent": UA, Accept: "application/json" },
       cache: "no-store",
     });
+    if (res.status === 429) {
+      lastErr = "HTTP 429";
+      continue;
+    }
     if (!res.ok) throw new Error(`GDELT -> HTTP ${res.status}`);
     const data = (await res.json()) as { articles?: GdeltArticle[] };
-
     const seen = new Set<string>();
     const out: NewsArticle[] = [];
     for (const a of data.articles ?? []) {
@@ -103,5 +116,22 @@ export async function getNews(): Promise<NewsArticle[]> {
       });
     }
     return out;
-  });
+  }
+  throw new Error(`GDELT -> ${lastErr}`);
+}
+
+export async function getNews(): Promise<NewsArticle[]> {
+  const hit = await cacheGet<NewsArticle[]>(NEWS_KEY);
+  if (hit) return hit;
+  try {
+    const articles = await fetchGdelt();
+    // Only cache a non-empty success for the full TTL; empty success is brief.
+    await cacheSet(NEWS_KEY, articles, articles.length ? OK_TTL : FAIL_TTL);
+    return articles;
+  } catch {
+    // Cache the empty result briefly so we don't hammer GDELT on every request,
+    // but recover within a couple of minutes once it lets us through.
+    await cacheSet(NEWS_KEY, [], FAIL_TTL);
+    return [];
+  }
 }

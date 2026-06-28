@@ -3,6 +3,7 @@ import { getFeed } from "@/lib/sources";
 // Always run at request time; our own Upstash layer handles caching/TTL.
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET() {
   const feed = await getFeed();

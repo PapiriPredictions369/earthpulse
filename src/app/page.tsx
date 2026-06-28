@@ -4,6 +4,7 @@ import { getFeed } from "@/lib/sources";
 // Server-render the first paint with live data, then the client refreshes it.
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export default async function Page() {
   const feed = await getFeed();

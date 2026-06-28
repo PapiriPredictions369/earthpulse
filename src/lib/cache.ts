@@ -57,6 +57,36 @@ export async function cached<T>(
   return value;
 }
 
+export async function cacheGet<T>(key: string): Promise<T | null> {
+  if (redis) {
+    try {
+      const hit = await redis.get<T>(key);
+      return hit ?? null;
+    } catch {
+      return null;
+    }
+  }
+  const hit = mem.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value as T;
+  return null;
+}
+
+export async function cacheSet<T>(
+  key: string,
+  value: T,
+  ttlSeconds: number,
+): Promise<void> {
+  if (redis) {
+    try {
+      await redis.set(key, value, { ex: ttlSeconds });
+    } catch {
+      /* ignore */
+    }
+  } else {
+    mem.set(key, { value, expires: Date.now() + ttlSeconds * 1000 });
+  }
+}
+
 /**
  * Returns true the first time `key` is seen, false on every subsequent call
  * within `ttlSeconds`. Used to dedupe alerts so each event fires once.
