@@ -68,9 +68,9 @@ imply unproven links (e.g. between Schumann/solar activity and human events).
 ### Telegram alerts
 `/api/cron/alerts` scans for extreme signals (M6+ quakes, X-class flares, Kp ≥ 7,
 any `extreme` event) and pushes one Telegram message each, deduped in Upstash for
-6h. `vercel.json` runs it hourly. Protect it by setting `CRON_SECRET`. Note:
-Vercel Hobby caps cron frequency — bump the schedule on a paid plan for finer
-granularity, or hit the endpoint manually.
+6h. `vercel.json` runs it once daily (13:00 UTC) — Vercel Hobby caps cron at one run
+per day. On the Pro plan, bump it to `0 * * * *` (hourly) or finer. Protect it by
+setting `CRON_SECRET`. You can also hit the endpoint manually any time.
 
 ### A note on the Schumann resonance
 
